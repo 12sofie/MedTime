@@ -20,7 +20,7 @@ export const mockPersonas: Persona[] = [
     apellido: "Pérez",
     dni: "12345678",
     telefono: "987654321",
-    correo: "juan.perez@email.com",
+    correo: "juan.perez@medtime.com", // Actualizado dominio a medtime.com
   },
   {
     id_persona: 2,
@@ -28,7 +28,7 @@ export const mockPersonas: Persona[] = [
     apellido: "García",
     dni: "87654321",
     telefono: "987654322",
-    correo: "maria.garcia@email.com",
+    correo: "maria.garcia@medtime.com", // Actualizado dominio a medtime.com
   },
   {
     id_persona: 3,
@@ -36,7 +36,7 @@ export const mockPersonas: Persona[] = [
     apellido: "López",
     dni: "11223344",
     telefono: "987654323",
-    correo: "carlos.lopez@email.com",
+    correo: "carlos.lopez@medtime.com", // Actualizado dominio a medtime.com
   },
   {
     id_persona: 4,
@@ -44,7 +44,7 @@ export const mockPersonas: Persona[] = [
     apellido: "Martínez",
     dni: "44332211",
     telefono: "987654324",
-    correo: "ana.martinez@email.com",
+    correo: "ana.martinez@medtime.com", // Actualizado dominio a medtime.com
   },
 ]
 
