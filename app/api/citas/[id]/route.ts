@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server"
 import { mockCitas } from "@/lib/mock-data"
+import { NextResponse } from "next/server"
 
 // GET - Obtener una cita específica
 export async function GET(request: Request, { params }: { params: { id: string } }) {

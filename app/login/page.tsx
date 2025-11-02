@@ -1,12 +1,12 @@
 "use client"
 
-import type React from "react"
-import { useState } from "react"
-import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useAuth } from "@/contexts/auth-context"
+import { useRouter } from "next/navigation"
+import type React from "react"
+import { useState } from "react"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -27,7 +27,7 @@ export default function LoginPage() {
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ usuario, password }),
+        body: JSON.stringify({ username: usuario, password }),
       })
 
       const data = await response.json()

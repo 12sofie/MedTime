@@ -1,11 +1,12 @@
+use medtime;
 -- Script de datos iniciales para el sistema de citas médicas
 
 -- Insertar roles
+-- Eliminado rol 'recepcionista'
 INSERT INTO tbl_rol (nombre) VALUES 
 ('administrador'),
 ('medico'),
-('paciente'),
-('recepcionista');
+('paciente');
 
 -- Insertar estados de citas
 INSERT INTO tbl_estado (nombre) VALUES 
@@ -59,10 +60,10 @@ INSERT INTO tbl_disponibilidad (dia_semana, hora_inicio, hora_fin) VALUES
 
 -- Administrador
 INSERT INTO tbl_persona (nombre, apellido, dni, telefono, correo) VALUES 
-('Carlos', 'Administrador', '12345678', '999111222', 'admin@hospital.com');
+('Carlos', 'Ramírez', '12345678', '999111222', 'admin@medtime.com');
 
 INSERT INTO tbl_usuarios (email, password) VALUES 
-('admin@hospital.com', '123456');
+('admin@medtime.com', '123456');
 
 INSERT INTO tbl_administrador (fk_id_persona, fk_id_usuario) VALUES 
 (1, 1);
@@ -72,10 +73,10 @@ INSERT INTO tbl_rol_x_usuario (fk_id_rol, fk_id_usuario) VALUES
 
 -- Médico 1: Dr. Juan Pérez - Cardiología
 INSERT INTO tbl_persona (nombre, apellido, dni, telefono, correo) VALUES 
-('Juan', 'Pérez', '23456789', '999222333', 'juan.perez@hospital.com');
+('Juan', 'Pérez', '23456789', '999222333', 'juan.perez@medtime.com');
 
 INSERT INTO tbl_usuarios (email, password) VALUES 
-('juan.perez@hospital.com', '123456');
+('juan.perez@medtime.com', '123456');
 
 INSERT INTO tbl_medicos (descripcion, fk_id_persona, fk_id_usuario, fk_id_especialidad) VALUES 
 ('Cardiólogo con 15 años de experiencia', 2, 2, 2);
@@ -89,10 +90,10 @@ INSERT INTO tbl_medicos_x_disponibilidad (fk_id_medico, fk_id_disponibilidad) VA
 
 -- Médico 2: Dra. María López - Pediatría
 INSERT INTO tbl_persona (nombre, apellido, dni, telefono, correo) VALUES 
-('María', 'López', '34567890', '999333444', 'maria.lopez@hospital.com');
+('María', 'López', '34567890', '999333444', 'maria.lopez@medtime.com');
 
 INSERT INTO tbl_usuarios (email, password) VALUES 
-('maria.lopez@hospital.com', '123456');
+('maria.lopez@medtime.com', '123456');
 
 INSERT INTO tbl_medicos (descripcion, fk_id_persona, fk_id_usuario, fk_id_especialidad) VALUES 
 ('Pediatra especializada en neonatología con 12 años de experiencia', 3, 3, 3);
@@ -106,10 +107,10 @@ INSERT INTO tbl_medicos_x_disponibilidad (fk_id_medico, fk_id_disponibilidad) VA
 
 -- Médico 3: Dr. Carlos García - Dermatología
 INSERT INTO tbl_persona (nombre, apellido, dni, telefono, correo) VALUES 
-('Carlos', 'García', '45678901', '999444555', 'carlos.garcia@hospital.com');
+('Carlos', 'García', '45678901', '999444555', 'carlos.garcia@medtime.com');
 
 INSERT INTO tbl_usuarios (email, password) VALUES 
-('carlos.garcia@hospital.com', '123456');
+('carlos.garcia@medtime.com', '123456');
 
 INSERT INTO tbl_medicos (descripcion, fk_id_persona, fk_id_usuario, fk_id_especialidad) VALUES 
 ('Dermatólogo especializado en dermatología estética con 8 años de experiencia', 4, 4, 4);
@@ -123,10 +124,10 @@ INSERT INTO tbl_medicos_x_disponibilidad (fk_id_medico, fk_id_disponibilidad) VA
 
 -- Médico 4: Dra. Ana Martín - Medicina General
 INSERT INTO tbl_persona (nombre, apellido, dni, telefono, correo) VALUES 
-('Ana', 'Martín', '56789012', '999555666', 'ana.martin@hospital.com');
+('Ana', 'Martín', '56789012', '999555666', 'ana.martin@medtime.com');
 
 INSERT INTO tbl_usuarios (email, password) VALUES 
-('ana.martin@hospital.com', '123456');
+('ana.martin@medtime.com', '123456');
 
 INSERT INTO tbl_medicos (descripcion, fk_id_persona, fk_id_usuario, fk_id_especialidad) VALUES 
 ('Médico general con 10 años de experiencia en atención primaria', 5, 5, 1);
@@ -140,10 +141,10 @@ INSERT INTO tbl_medicos_x_disponibilidad (fk_id_medico, fk_id_disponibilidad) VA
 
 -- Paciente 1
 INSERT INTO tbl_persona (nombre, apellido, dni, telefono, correo) VALUES 
-('Pedro', 'González', '67890123', '999666777', 'pedro.gonzalez@email.com');
+('Pedro', 'González', '67890123', '999666777', 'pedro.gonzalez@medtime.com');
 
 INSERT INTO tbl_usuarios (email, password) VALUES 
-('pedro.gonzalez@email.com', '123456');
+('pedro.gonzalez@medtime.com', '123456');
 
 INSERT INTO tbl_pacientes (fk_id_persona, fk_id_usuario) VALUES 
 (6, 6);
@@ -153,10 +154,10 @@ INSERT INTO tbl_rol_x_usuario (fk_id_rol, fk_id_usuario) VALUES
 
 -- Paciente 2
 INSERT INTO tbl_persona (nombre, apellido, dni, telefono, correo) VALUES 
-('Laura', 'Martínez', '78901234', '999777888', 'laura.martinez@email.com');
+('Laura', 'Martínez', '78901234', '999777888', 'laura.martinez@medtime.com');
 
 INSERT INTO tbl_usuarios (email, password) VALUES 
-('laura.martinez@email.com', '123456');
+('laura.martinez@medtime.com', '123456');
 
 INSERT INTO tbl_pacientes (fk_id_persona, fk_id_usuario) VALUES 
 (7, 7);
@@ -164,35 +165,27 @@ INSERT INTO tbl_pacientes (fk_id_persona, fk_id_usuario) VALUES
 INSERT INTO tbl_rol_x_usuario (fk_id_rol, fk_id_usuario) VALUES 
 (3, 7);
 
--- Recepcionista
-INSERT INTO tbl_persona (nombre, apellido, dni, telefono, correo) VALUES 
-('Sofia', 'Recepción', '89012345', '999888999', 'recepcion@hospital.com');
-
-INSERT INTO tbl_usuarios (email, password) VALUES 
-('recepcion@hospital.com', '123456');
-
-INSERT INTO tbl_rol_x_usuario (fk_id_rol, fk_id_usuario) VALUES 
-(4, 8);
+-- Eliminados datos de recepcionista (persona, usuario y relación rol)
 
 -- ============================================
 -- CITAS DE EJEMPLO
 -- ============================================
 
 -- Cita 1: Pedro González con Dr. Juan Pérez (Programada)
-INSERT INTO tbl_citas (fecha_cita, hora_cita, motivo_consulta, fk_id_medico, fk_id_paciente, fk_id_estado, fk_id_consultorio) VALUES 
-('2024-10-04', '09:00', 'Consulta de control cardiológico', 1, 1, 3, 1);
+INSERT INTO tbl_citas (fecha_cita, motivo, fk_id_medico, fk_id_paciente, fk_id_estado, fk_id_consultorio)
+VALUES ('2024-10-04 09:00:00', 'Consulta de control cardiológico', 1, 1, 3, 1);
 
 -- Cita 2: Laura Martínez con Dra. María López (Confirmada)
-INSERT INTO tbl_citas (fecha_cita, hora_cita, motivo_consulta, fk_id_medico, fk_id_paciente, fk_id_estado, fk_id_consultorio) VALUES 
-('2024-10-05', '14:00', 'Control pediátrico de rutina', 2, 2, 2, 2);
+INSERT INTO tbl_citas (fecha_cita, motivo, fk_id_medico, fk_id_paciente, fk_id_estado, fk_id_consultorio)
+VALUES ('2024-10-05 14:00:00', 'Control pediátrico de rutina', 2, 2, 2, 2);
 
 -- Cita 3: Pedro González con Dr. Carlos García (Pendiente)
-INSERT INTO tbl_citas (fecha_cita, hora_cita, motivo_consulta, fk_id_medico, fk_id_paciente, fk_id_estado, fk_id_consultorio) VALUES 
-('2024-10-10', '10:30', 'Revisión dermatológica', 3, 1, 1, 3);
+INSERT INTO tbl_citas (fecha_cita, motivo, fk_id_medico, fk_id_paciente, fk_id_estado, fk_id_consultorio)
+VALUES ('2024-10-10 10:30:00', 'Revisión dermatológica', 3, 1, 1, 3);
 
 -- Cita 4: Laura Martínez con Dra. Ana Martín (Completada - Historial)
-INSERT INTO tbl_citas (fecha_cita, hora_cita, motivo_consulta, fk_id_medico, fk_id_paciente, fk_id_estado, fk_id_consultorio) VALUES 
-('2024-09-15', '11:00', 'Consulta general por gripe', 4, 2, 5, 1);
+INSERT INTO tbl_citas (fecha_cita, motivo, fk_id_medico, fk_id_paciente, fk_id_estado, fk_id_consultorio)
+VALUES ('2024-09-15 11:00:00', 'Consulta general por gripe', 4, 2, 5, 1);
 
 -- ============================================
 -- RECORDATORIOS DE EJEMPLO
