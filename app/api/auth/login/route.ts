@@ -23,7 +23,12 @@ export async function POST(req: Request) {
         p.id_persona,
         p.nombre,
         p.apellido,
-        p.dni
+        p.dni,
+        p.telefono,
+        p.correo,
+        m.id_medico,
+        pa.id_paciente,
+        a.id_administrador
       FROM tbl_usuarios u
       LEFT JOIN tbl_medicos m ON u.id_usuario = m.fk_id_usuario
       LEFT JOIN tbl_pacientes pa ON u.id_usuario = pa.fk_id_usuario
@@ -83,20 +88,47 @@ export async function POST(req: Request) {
     const roles = Array.isArray(roleRows) ? roleRows : []
     const rol = roles.length > 0 ? roles[0].nombre : "paciente"
 
+    const responseUser: any = {
+      id_usuario: user.id_usuario,
+      email: user.email,
+      rol: rol,
+      persona: {
+        id_persona: user.id_persona || 0,
+        nombre: user.nombre || "",
+        apellido: user.apellido || "",
+        dni: user.dni || "",
+        telefono: user.telefono || "",
+        correo: user.correo || "",
+      },
+    }
+
+    // Add role-specific data
+    if (rol === "paciente" && user.id_paciente) {
+      responseUser.paciente = {
+        id_paciente: user.id_paciente,
+        fk_id_persona: user.id_persona,
+        fk_id_usuario: user.id_usuario,
+      }
+    } else if (rol === "medico" && user.id_medico) {
+      responseUser.medico = {
+        id_medico: user.id_medico,
+        fk_id_persona: user.id_persona,
+        fk_id_usuario: user.id_usuario,
+      }
+    } else if (rol === "administrador" && user.id_administrador) {
+      responseUser.administrador = {
+        id_administrador: user.id_administrador,
+        fk_id_persona: user.id_persona,
+        fk_id_usuario: user.id_usuario,
+      }
+    }
+
     console.log("[v0] Login successful for user:", username, "with rol:", rol)
+    console.log("[v0] Response user object:", responseUser)
+
     return NextResponse.json({
       message: "Inicio de sesión exitoso",
-      user: {
-        id_usuario: user.id_usuario,
-        email: user.email,
-        rol: rol,
-        persona: {
-          id_persona: user.id_persona || 0,
-          nombre: user.nombre || "",
-          apellido: user.apellido || "",
-          dni: user.dni || "",
-        },
-      },
+      user: responseUser,
     })
   } catch (error) {
     console.error("[v0] Login error:", error)

@@ -35,27 +35,70 @@ export default function NuevaCitaPage() {
     setError("")
     setLoading(true)
 
+    console.log("[v0] Form data before validation:", formData)
+    console.log("[v0] User data:", user)
+    console.log("[v0] ID del paciente:", user?.paciente?.id_paciente)
+
+    if (!formData.fk_id_medico) {
+      setError("Por favor selecciona un médico")
+      setLoading(false)
+      return
+    }
+
+    if (!formData.fecha_cita) {
+      setError("Por favor selecciona una fecha")
+      setLoading(false)
+      return
+    }
+
+    if (!formData.hora_cita) {
+      setError("Por favor selecciona una hora")
+      setLoading(false)
+      return
+    }
+
+    if (!formData.fk_id_consultorio) {
+      setError("Por favor selecciona un consultorio")
+      setLoading(false)
+      return
+    }
+
+    if (!formData.motivo.trim()) {
+      setError("Por favor ingresa el motivo de la consulta")
+      setLoading(false)
+      return
+    }
+
+    if (!user?.paciente?.id_paciente) {
+      setError("No se pudo identificar al paciente. Por favor inicia sesión nuevamente.")
+      setLoading(false)
+      return
+    }
+
     try {
       const fechaHora = new Date(`${formData.fecha_cita}T${formData.hora_cita}`)
+
+      const payload = {
+        ...formData,
+        fecha_cita: fechaHora.toISOString(),
+        fk_id_medico: Number.parseInt(formData.fk_id_medico),
+        fk_id_paciente: user?.paciente?.id_paciente,
+        fk_id_consultorio: Number.parseInt(formData.fk_id_consultorio),
+      }
+
+      console.log("[v0] Sending payload to API:", JSON.stringify(payload, null, 2))
 
       const response = await fetch("/api/citas", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...formData,
-          fecha_cita: fechaHora.toISOString(),
-          fk_id_medico: Number.parseInt(formData.fk_id_medico),
-          fk_id_paciente: user?.paciente?.id_paciente,
-          fk_id_consultorio: Number.parseInt(formData.fk_id_consultorio),
-        }),
+        body: JSON.stringify(payload),
       })
 
       const data = await response.json()
+      console.log("[v0] API response:", data)
 
       if (!response.ok) {
-        setError(data.error || "Error al crear la cita")
-        setLoading(false)
-        return
+        throw new Error(data.details || data.error || "Error al crear la cita")
       }
 
       setSuccess(true)
@@ -63,8 +106,8 @@ export default function NuevaCitaPage() {
         router.push("/paciente/citas")
       }, 2000)
     } catch (err) {
-      console.error("[v0] Error al crear cita:", err)
-      setError("Error de conexión. Intenta nuevamente.")
+      console.error("[v0] Error en handleSubmit:", err)
+      setError(err instanceof Error ? err.message : "Error al crear la cita")
       setLoading(false)
     }
   }
@@ -134,7 +177,6 @@ export default function NuevaCitaPage() {
                         onChange={(e) => setFormData((prev) => ({ ...prev, fecha_cita: e.target.value }))}
                         className="pl-10"
                         min={new Date().toISOString().split("T")[0]}
-                        required
                       />
                     </div>
                   </div>
@@ -149,7 +191,6 @@ export default function NuevaCitaPage() {
                         value={formData.hora_cita}
                         onChange={(e) => setFormData((prev) => ({ ...prev, hora_cita: e.target.value }))}
                         className="pl-10"
-                        required
                       />
                     </div>
                   </div>
@@ -181,7 +222,6 @@ export default function NuevaCitaPage() {
                     placeholder="Ej: Consulta general, dolor, control, etc."
                     value={formData.motivo}
                     onChange={(e) => setFormData((prev) => ({ ...prev, motivo: e.target.value }))}
-                    required
                   />
                 </div>
 

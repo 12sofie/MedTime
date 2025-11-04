@@ -3,22 +3,59 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Calendar, Stethoscope, FileText, Plus, AlertCircle } from "lucide-react"
-import { mockCitas, mockEspecialidades } from "@/lib/mock-data"
+import { mockEspecialidades } from "@/lib/mock-data"
 import { useAuth } from "@/contexts/auth-context"
 import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
+import { useState, useEffect } from "react"
+import type { Cita } from "@/lib/types"
 
 export default function PacienteDashboardPage() {
   const { user } = useAuth()
+  const [citas, setCitas] = useState<Cita[]>([])
+  const [loading, setLoading] = useState(true)
 
-  // Filtrar citas del paciente actual
-  const misCitas = mockCitas.filter((c) => c.fk_id_paciente === user?.paciente?.id_paciente)
-  const proximasCitas = [...misCitas]
+  useEffect(() => {
+    const fetchCitas = async () => {
+      if (!user?.paciente?.id_paciente) {
+        setLoading(false)
+        return
+      }
+
+      try {
+        setLoading(true)
+        const response = await fetch(`/api/citas?paciente_id=${user.paciente.id_paciente}`)
+
+        if (!response.ok) {
+          throw new Error("Error al cargar las citas")
+        }
+
+        const data = await response.json()
+
+        // Convert fecha_cita strings to Date objects
+        const citasConFechas = data.citas.map((cita: any) => ({
+          ...cita,
+          fecha_cita: new Date(cita.fecha_cita),
+          fecha_creacion: new Date(cita.fecha_creacion),
+        }))
+
+        setCitas(citasConFechas)
+      } catch (err) {
+        console.error("Error al cargar citas:", err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchCitas()
+  }, [user?.paciente?.id_paciente])
+
+  const proximasCitas = [...citas]
     .filter((c) => c.fecha_cita >= new Date())
     .sort((a, b) => a.fecha_cita.getTime() - b.fecha_cita.getTime())
     .slice(0, 3)
 
-  const citasPendientes = misCitas.filter((c) => c.estado?.nombre === "Pendiente")
+  const citasPendientes = citas.filter((c) => c.estado?.nombre === "Pendiente")
 
   return (
     <div className="p-8 space-y-8">
@@ -117,7 +154,11 @@ export default function PacienteDashboardPage() {
           </div>
         </CardHeader>
         <CardContent>
-          {proximasCitas.length > 0 ? (
+          {loading ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <p>Cargando citas...</p>
+            </div>
+          ) : proximasCitas.length > 0 ? (
             <div className="space-y-4">
               {proximasCitas.map((cita) => (
                 <div key={cita.id_citas} className="flex items-center justify-between p-4 border rounded-lg">

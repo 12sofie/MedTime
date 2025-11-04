@@ -15,8 +15,10 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { useAuth } from "@/contexts/auth-context"
+import { useRouter } from "next/navigation"
 
-// Horarios disponibles mock
 const horariosDisponibles = [
   { dia: "viernes", hora: "09:00" },
   { dia: "viernes", hora: "10:00" },
@@ -45,7 +47,15 @@ export default function MedicosPage() {
   const [especialidadFilter, setEspecialidadFilter] = useState("todas")
   const [selectedMedico, setSelectedMedico] = useState<number | null>(null)
   const [fechaCita, setFechaCita] = useState("")
+  const [horaCita, setHoraCita] = useState("")
   const [motivoCita, setMotivoCita] = useState("")
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState(false)
+  const [dialogOpen, setDialogOpen] = useState(false)
+
+  const { user } = useAuth()
+  const router = useRouter()
 
   const filteredMedicos = mockMedicos.filter((medico) => {
     const matchesSearch =
@@ -60,14 +70,86 @@ export default function MedicosPage() {
 
   const handleAgendar = (medicoId: number) => {
     setSelectedMedico(medicoId)
+    setFechaCita("")
+    setHoraCita("")
+    setMotivoCita("")
+    setError(null)
+    setSuccess(false)
+    setDialogOpen(true)
   }
 
-  const handleConfirmarCita = () => {
-    console.log("[v0] Agendando cita:", { selectedMedico, fechaCita, motivoCita })
-    // Aquí iría la lógica para crear la cita
-    setSelectedMedico(null)
-    setFechaCita("")
-    setMotivoCita("")
+  const handleConfirmarCita = async () => {
+    if (!fechaCita || !horaCita || !motivoCita) {
+      setError("Por favor completa todos los campos requeridos")
+      return
+    }
+
+    if (!user?.paciente?.id_paciente) {
+      setError("No se pudo identificar al paciente. Por favor inicia sesión nuevamente.")
+      return
+    }
+
+    if (!selectedMedico) {
+      setError("No se seleccionó un médico")
+      return
+    }
+
+    setError(null)
+    setLoading(true)
+
+    try {
+      const consultorioId = mockConsultorios[0]?.id_consultorio || 1
+
+      console.log("[v0] ===== FRONTEND DEBUG =====")
+      console.log("[v0] Fecha seleccionada (input date):", fechaCita)
+      console.log("[v0] Hora seleccionada (input time):", horaCita)
+
+      const fechaHora = `${fechaCita} ${horaCita}:00`
+      console.log("[v0] Fecha y hora concatenadas:", fechaHora)
+      console.log("[v0] Tipo de dato:", typeof fechaHora)
+      console.log("[v0] ===== FIN FRONTEND DEBUG =====")
+
+      const response = await fetch("/api/citas", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fk_id_medico: selectedMedico,
+          fk_id_paciente: user.paciente.id_paciente,
+          fk_id_consultorio: consultorioId,
+          fecha_cita: fechaHora,
+          motivo: motivoCita,
+          observaciones: "",
+        }),
+      })
+
+      const data = await response.json()
+
+      console.log("[v0] Respuesta del API:", data)
+
+      if (!response.ok) {
+        setError(data.error || "Error al crear la cita")
+        return
+      }
+
+      setSuccess(true)
+
+      setTimeout(() => {
+        setDialogOpen(false)
+        setSelectedMedico(null)
+        setFechaCita("")
+        setHoraCita("")
+        setMotivoCita("")
+        setSuccess(false)
+        router.push("/paciente/citas")
+      }, 1500)
+    } catch (err) {
+      console.error("[v0] Error al crear cita:", err)
+      setError("Error de conexión. Por favor intenta nuevamente.")
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -112,7 +194,6 @@ export default function MedicosPage() {
                 key={medico.id_medico}
                 className="bg-white rounded-lg border border-[#E2E8F0] p-6 space-y-4 hover:shadow-md transition-shadow"
               >
-                {/* Nombre y años de experiencia */}
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <h3 className="text-lg font-semibold text-[#2C5282]">
@@ -125,20 +206,17 @@ export default function MedicosPage() {
                   </span>
                 </div>
 
-                {/* Rating */}
                 <div className="flex items-center gap-2">
                   <Star className="w-5 h-5 fill-[#ECC94B] text-[#ECC94B]" />
                   <span className="font-semibold text-[#2C5282]">{medico.rating}</span>
                   <span className="text-sm text-[#718096]">({medico.num_resenas} reseñas)</span>
                 </div>
 
-                {/* Consultorio */}
                 <div className="flex items-center gap-2 text-sm text-[#718096]">
                   <MapPin className="w-4 h-4" />
                   <span>{consultorio.nombre_sala}</span>
                 </div>
 
-                {/* Próximos horarios */}
                 <div>
                   <p className="text-sm font-medium text-[#2C5282] mb-2">Próximos horarios:</p>
                   <div className="grid grid-cols-2 gap-2">
@@ -151,7 +229,6 @@ export default function MedicosPage() {
                   </div>
                 </div>
 
-                {/* Botones */}
                 <div className="flex gap-2 pt-2">
                   <Button
                     variant="outline"
@@ -159,7 +236,7 @@ export default function MedicosPage() {
                   >
                     Ver perfil
                   </Button>
-                  <Dialog>
+                  <Dialog open={dialogOpen && selectedMedico === medico.id_medico} onOpenChange={setDialogOpen}>
                     <DialogTrigger asChild>
                       <Button
                         className="flex-1 bg-[#4A9B9B] hover:bg-[#3A8B8B] text-white"
@@ -178,6 +255,16 @@ export default function MedicosPage() {
                         </DialogDescription>
                       </DialogHeader>
                       <div className="space-y-4 py-4">
+                        {error && (
+                          <Alert variant="destructive">
+                            <AlertDescription>{error}</AlertDescription>
+                          </Alert>
+                        )}
+                        {success && (
+                          <Alert className="bg-green-50 text-green-800 border-green-200">
+                            <AlertDescription>¡Cita creada exitosamente! Redirigiendo...</AlertDescription>
+                          </Alert>
+                        )}
                         <div className="space-y-2">
                           <Label htmlFor="fecha" className="text-[#2C5282]">
                             Fecha
@@ -187,7 +274,22 @@ export default function MedicosPage() {
                             type="date"
                             value={fechaCita}
                             onChange={(e) => setFechaCita(e.target.value)}
+                            min={new Date().toISOString().split("T")[0]}
                             className="border-[#4A9B9B] focus:border-[#4A9B9B] focus:ring-[#4A9B9B]"
+                            disabled={loading || success}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="hora" className="text-[#2C5282]">
+                            Hora
+                          </Label>
+                          <Input
+                            id="hora"
+                            type="time"
+                            value={horaCita}
+                            onChange={(e) => setHoraCita(e.target.value)}
+                            className="border-[#4A9B9B] focus:border-[#4A9B9B] focus:ring-[#4A9B9B]"
+                            disabled={loading || success}
                           />
                         </div>
                         <div className="space-y-2">
@@ -200,20 +302,25 @@ export default function MedicosPage() {
                             value={motivoCita}
                             onChange={(e) => setMotivoCita(e.target.value)}
                             className="border-[#E2E8F0] focus:border-[#4A9B9B] focus:ring-[#4A9B9B]"
+                            disabled={loading || success}
                           />
                         </div>
                       </div>
                       <div className="flex gap-3">
-                        <DialogTrigger asChild>
-                          <Button variant="outline" className="flex-1 bg-transparent">
-                            Cancelar
-                          </Button>
-                        </DialogTrigger>
+                        <Button
+                          variant="outline"
+                          className="flex-1 bg-transparent"
+                          onClick={() => setDialogOpen(false)}
+                          disabled={loading || success}
+                        >
+                          Cancelar
+                        </Button>
                         <Button
                           onClick={handleConfirmarCita}
                           className="flex-1 bg-[#4A9B9B] hover:bg-[#3A8B8B] text-white"
+                          disabled={loading || success}
                         >
-                          Confirmar Cita
+                          {loading ? "Creando..." : success ? "¡Cita Creada!" : "Confirmar Cita"}
                         </Button>
                       </div>
                     </DialogContent>

@@ -1,24 +1,159 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Calendar, Clock, MapPin, FileText } from "lucide-react"
-import { mockCitas } from "@/lib/mock-data"
 import { useAuth } from "@/contexts/auth-context"
+import type { Cita } from "@/lib/types"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { useToast } from "@/hooks/use-toast"
 
 export default function PacienteCitasPage() {
   const { user } = useAuth()
+  const { toast } = useToast()
   const [activeTab, setActiveTab] = useState<"proximas" | "historial">("proximas")
+  const [citas, setCitas] = useState<Cita[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [citaToCancel, setCitaToCancel] = useState<number | null>(null)
+  const [canceling, setCanceling] = useState(false)
 
-  const misCitas = mockCitas.filter((c) => c.fk_id_paciente === user?.paciente?.id_paciente)
+  useEffect(() => {
+    const fetchCitas = async () => {
+      if (!user?.paciente?.id_paciente) {
+        setLoading(false)
+        return
+      }
+
+      try {
+        setLoading(true)
+        const response = await fetch(`/api/citas?paciente_id=${user.paciente.id_paciente}`)
+
+        if (!response.ok) {
+          throw new Error("Error al cargar las citas")
+        }
+
+        const data = await response.json()
+
+        // Convert fecha_cita strings to Date objects
+        const citasConFechas = data.citas.map((cita: any) => ({
+          ...cita,
+          fecha_cita: new Date(cita.fecha_cita),
+          fecha_creacion: new Date(cita.fecha_creacion),
+        }))
+
+        setCitas(citasConFechas)
+        setError(null)
+      } catch (err) {
+        console.error("Error al cargar citas:", err)
+        setError("No se pudieron cargar las citas")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchCitas()
+  }, [user?.paciente?.id_paciente])
+
+  const handleCancelarCita = async () => {
+    if (!citaToCancel) return
+
+    try {
+      setCanceling(true)
+      const response = await fetch("/api/citas", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id_citas: citaToCancel,
+          fk_id_estado: 3, // Assuming 3 is "Cancelada" status
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Error al cancelar la cita")
+      }
+
+      // Update local state to reflect the cancellation
+      setCitas((prevCitas) =>
+        prevCitas.map((cita) =>
+          cita.id_citas === citaToCancel
+            ? {
+                ...cita,
+                fk_id_estado: 3,
+                estado: { ...cita.estado, id_estado: 3, nombre: "Cancelada" },
+              }
+            : cita,
+        ),
+      )
+
+      toast({
+        title: "Cita cancelada",
+        description: "La cita ha sido cancelada exitosamente.",
+      })
+
+      setCitaToCancel(null)
+    } catch (err) {
+      console.error("Error al cancelar cita:", err)
+      toast({
+        title: "Error",
+        description: "No se pudo cancelar la cita. Intenta nuevamente.",
+        variant: "destructive",
+      })
+    } finally {
+      setCanceling(false)
+    }
+  }
 
   const ahora = new Date()
-  const proximasCitas = misCitas.filter((cita) => cita.fecha_cita >= ahora)
-  const historialCitas = misCitas.filter((cita) => cita.fecha_cita < ahora)
+  const proximasCitas = citas.filter((cita) => cita.fecha_cita >= ahora && cita.estado?.nombre !== "Cancelada")
+  const historialCitas = citas.filter((cita) => cita.fecha_cita < ahora || cita.estado?.nombre === "Cancelada")
 
   const citasAMostrar = activeTab === "proximas" ? proximasCitas : historialCitas
+
+  if (loading) {
+    return (
+      <div className="p-8 space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold text-primary-dark">Mis Citas</h1>
+          <p className="text-muted-foreground mt-1">Gestiona tus citas médicas programadas</p>
+        </div>
+        <Card className="border border-border">
+          <CardContent className="p-12 text-center">
+            <p className="text-muted-foreground">Cargando citas...</p>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="p-8 space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold text-primary-dark">Mis Citas</h1>
+          <p className="text-muted-foreground mt-1">Gestiona tus citas médicas programadas</p>
+        </div>
+        <Card className="border border-border">
+          <CardContent className="p-12 text-center">
+            <p className="text-red-500">{error}</p>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
   return (
     <div className="p-8 space-y-6">
@@ -123,6 +258,7 @@ export default function PacienteCitasPage() {
                         <Button
                           variant="outline"
                           className="border-red-500 text-red-500 hover:bg-red-50 bg-transparent"
+                          onClick={() => setCitaToCancel(cita.id_citas)}
                         >
                           Cancelar cita
                         </Button>
@@ -144,6 +280,27 @@ export default function PacienteCitasPage() {
           </Card>
         )}
       </div>
+
+      <AlertDialog open={citaToCancel !== null} onOpenChange={() => setCitaToCancel(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Cancelar cita?</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Estás seguro de que deseas cancelar esta cita? Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={canceling}>No, mantener cita</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleCancelarCita}
+              disabled={canceling}
+              className="bg-red-500 hover:bg-red-600"
+            >
+              {canceling ? "Cancelando..." : "Sí, cancelar cita"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
