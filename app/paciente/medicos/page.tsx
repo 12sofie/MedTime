@@ -1,11 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Search, Star, MapPin, Calendar } from "lucide-react"
-import { mockMedicos, mockConsultorios } from "@/lib/mock-data"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   Dialog,
   DialogContent,
@@ -14,23 +10,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useAuth } from "@/contexts/auth-context"
-import { useRouter } from "next/navigation"
-
-const horariosDisponibles = [
-  { dia: "viernes", hora: "09:00" },
-  { dia: "viernes", hora: "10:00" },
-  { dia: "domingo", hora: "11:00" },
-  { dia: "lunes", hora: "14:00" },
-  { dia: "jueves", hora: "14:00" },
-  { dia: "viernes", hora: "15:00" },
-  { dia: "sábado", hora: "10:00" },
-  { dia: "domingo", hora: "10:30" },
-  { dia: "sábado", hora: "14:00" },
-  { dia: "lunes", hora: "16:00" },
-]
+import { mockConsultorios, mockMedicos } from "@/lib/mock-data"
+import { Calendar, MapPin, Search, Star } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { useEffect, useState } from "react"
 
 const diasMap: Record<string, string> = {
   lunes: "Lunes",
@@ -40,6 +27,13 @@ const diasMap: Record<string, string> = {
   viernes: "Viernes",
   sábado: "Sábado",
   domingo: "Domingo",
+  Lunes: "Lunes",
+  Martes: "Martes",
+  Miércoles: "Miércoles",
+  Jueves: "Jueves",
+  Viernes: "Viernes",
+  Sábado: "Sábado",
+  Domingo: "Domingo",
 }
 
 export default function MedicosPage() {
@@ -53,9 +47,93 @@ export default function MedicosPage() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [horariosPorMedico, setHorariosPorMedico] = useState<Record<number, any[]>>({})
+  const [horariosDisponibles, setHorariosDisponibles] = useState<any[]>([])
+  const [loadingHorarios, setLoadingHorarios] = useState(false)
+  const [timeSlots, setTimeSlots] = useState<string[]>([])
 
   const { user } = useAuth()
   const router = useRouter()
+
+  useEffect(() => {
+    const fetchHorariosProximos = async () => {
+      try {
+        const response = await fetch("/api/medicos/horarios-proximos")
+        if (response.ok) {
+          const data = await response.json()
+          setHorariosPorMedico(data.horariosPorMedico || {})
+        }
+      } catch (error) {
+        console.error("[v0] Error al cargar horarios próximos:", error)
+      }
+    }
+
+    fetchHorariosProximos()
+  }, [])
+
+  useEffect(() => {
+    if (selectedMedico) {
+      const fetchHorariosDisponibles = async () => {
+        setLoadingHorarios(true)
+        try {
+          const response = await fetch(`/api/medicos/${selectedMedico}/horarios-disponibles`)
+          if (response.ok) {
+            const data = await response.json()
+            setHorariosDisponibles(data.horarios || [])
+          } else {
+            setHorariosDisponibles([])
+          }
+        } catch (error) {
+          console.error("[v0] Error al cargar horarios disponibles:", error)
+          setHorariosDisponibles([])
+        } finally {
+          setLoadingHorarios(false)
+        }
+      }
+
+      fetchHorariosDisponibles()
+    }
+  }, [selectedMedico])
+
+  useEffect(() => {
+    if (fechaCita && horariosDisponibles.length > 0) {
+      const fechaSeleccionada = new Date(fechaCita)
+      const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
+      const diaSemana = diasSemana[fechaSeleccionada.getDay()]
+
+      const horariosDelDia = horariosDisponibles.filter(h => h.dia_semana === diaSemana)
+
+      const slots: string[] = []
+      horariosDelDia.forEach(horario => {
+        const [horaInicio, minInicio] = horario.hora_inicio.split(':').map(Number)
+        const [horaFin, minFin] = horario.hora_fin.split(':').map(Number)
+
+        let currentHour = horaInicio
+        let currentMin = minInicio
+
+        while (currentHour < horaFin || (currentHour === horaFin && currentMin < minFin)) {
+          const horaStr = currentHour.toString().padStart(2, '0')
+          const minStr = currentMin.toString().padStart(2, '0')
+          slots.push(`${horaStr}:${minStr}`)
+
+          currentMin += 30
+          if (currentMin >= 60) {
+            currentMin = 0
+            currentHour++
+          }
+        }
+      })
+
+      setTimeSlots(slots)
+      
+      if (horaCita && !slots.includes(horaCita)) {
+        setHoraCita("")
+      }
+    } else {
+      setTimeSlots([])
+      setHoraCita("")
+    }
+  }, [fechaCita, horariosDisponibles])
 
   const filteredMedicos = mockMedicos.filter((medico) => {
     const matchesSearch =
@@ -78,9 +156,33 @@ export default function MedicosPage() {
     setDialogOpen(true)
   }
 
+  const validarHorarioDisponible = (fecha: string, hora: string): boolean => {
+    if (!fecha || !hora || horariosDisponibles.length === 0) return false
+
+    const fechaSeleccionada = new Date(fecha)
+    const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
+    const diaSemana = diasSemana[fechaSeleccionada.getDay()]
+
+    const horariosDelDia = horariosDisponibles.filter(h => h.dia_semana === diaSemana)
+    
+    if (horariosDelDia.length === 0) {
+      return false
+    }
+
+    const horaSeleccionada = hora + ":00"
+    return horariosDelDia.some(h => {
+      return horaSeleccionada >= h.hora_inicio && horaSeleccionada <= h.hora_fin
+    })
+  }
+
   const handleConfirmarCita = async () => {
     if (!fechaCita || !horaCita || !motivoCita) {
       setError("Por favor completa todos los campos requeridos")
+      return
+    }
+
+    if (!validarHorarioDisponible(fechaCita, horaCita)) {
+      setError("El horario seleccionado no está disponible. Por favor elige un horario dentro de la disponibilidad del médico.")
       return
     }
 
@@ -100,14 +202,7 @@ export default function MedicosPage() {
     try {
       const consultorioId = mockConsultorios[0]?.id_consultorio || 1
 
-      console.log("[v0] ===== FRONTEND DEBUG =====")
-      console.log("[v0] Fecha seleccionada (input date):", fechaCita)
-      console.log("[v0] Hora seleccionada (input time):", horaCita)
-
       const fechaHora = `${fechaCita} ${horaCita}:00`
-      console.log("[v0] Fecha y hora concatenadas:", fechaHora)
-      console.log("[v0] Tipo de dato:", typeof fechaHora)
-      console.log("[v0] ===== FIN FRONTEND DEBUG =====")
 
       const response = await fetch("/api/citas", {
         method: "POST",
@@ -125,8 +220,6 @@ export default function MedicosPage() {
       })
 
       const data = await response.json()
-
-      console.log("[v0] Respuesta del API:", data)
 
       if (!response.ok) {
         setError(data.error || "Error al crear la cita")
@@ -187,7 +280,7 @@ export default function MedicosPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredMedicos.map((medico, index) => {
             const consultorio = mockConsultorios[index % mockConsultorios.length]
-            const horariosDelMedico = horariosDisponibles.slice(index * 4, index * 4 + 4)
+            const horariosDelMedico = horariosPorMedico[medico.id_medico] || []
 
             return (
               <div
@@ -219,14 +312,18 @@ export default function MedicosPage() {
 
                 <div>
                   <p className="text-sm font-medium text-[#2C5282] mb-2">Próximos horarios:</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {horariosDelMedico.map((horario, idx) => (
-                      <div key={idx} className="bg-[#F0F4F8] rounded px-3 py-2 text-center">
-                        <p className="text-sm font-medium text-[#2C5282]">{horario.hora}</p>
-                        <p className="text-xs text-[#718096]">{diasMap[horario.dia]}</p>
-                      </div>
-                    ))}
-                  </div>
+                  {horariosDelMedico.length > 0 ? (
+                    <div className="grid grid-cols-2 gap-2">
+                      {horariosDelMedico.map((horario, idx) => (
+                        <div key={idx} className="bg-[#F0F4F8] rounded px-3 py-2 text-center">
+                          <p className="text-sm font-medium text-[#2C5282]">{horario.hora}</p>
+                          <p className="text-xs text-[#718096]">{diasMap[horario.dia]}</p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-[#718096] text-center py-2">Sin horarios configurados</p>
+                  )}
                 </div>
 
                 <div className="flex gap-2 pt-2">
@@ -265,6 +362,24 @@ export default function MedicosPage() {
                             <AlertDescription>¡Cita creada exitosamente! Redirigiendo...</AlertDescription>
                           </Alert>
                         )}
+                        {loadingHorarios ? (
+                          <div className="text-sm text-[#718096]">Cargando horarios disponibles...</div>
+                        ) : horariosDisponibles.length > 0 ? (
+                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                            <p className="text-sm font-medium text-blue-900 mb-2">Horarios disponibles:</p>
+                            <div className="space-y-1">
+                              {horariosDisponibles.map((h, idx) => (
+                                <p key={idx} className="text-xs text-blue-700">
+                                  {h.dia_semana}: {h.hora_inicio.slice(0, 5)} - {h.hora_fin.slice(0, 5)}
+                                </p>
+                              ))}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                            <p className="text-sm text-yellow-800">Este médico no tiene horarios configurados.</p>
+                          </div>
+                        )}
                         <div className="space-y-2">
                           <Label htmlFor="fecha" className="text-[#2C5282]">
                             Fecha
@@ -276,21 +391,35 @@ export default function MedicosPage() {
                             onChange={(e) => setFechaCita(e.target.value)}
                             min={new Date().toISOString().split("T")[0]}
                             className="border-[#4A9B9B] focus:border-[#4A9B9B] focus:ring-[#4A9B9B]"
-                            disabled={loading || success}
+                            disabled={loading || success || horariosDisponibles.length === 0}
                           />
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="hora" className="text-[#2C5282]">
                             Hora
                           </Label>
-                          <Input
-                            id="hora"
-                            type="time"
+                          <Select
                             value={horaCita}
-                            onChange={(e) => setHoraCita(e.target.value)}
-                            className="border-[#4A9B9B] focus:border-[#4A9B9B] focus:ring-[#4A9B9B]"
-                            disabled={loading || success}
-                          />
+                            onValueChange={setHoraCita}
+                            disabled={!fechaCita || timeSlots.length === 0 || loading || success}
+                          >
+                            <SelectTrigger className="border-[#4A9B9B] focus:border-[#4A9B9B] focus:ring-[#4A9B9B]">
+                              <SelectValue placeholder={
+                                !fechaCita 
+                                  ? "Selecciona primero una fecha" 
+                                  : timeSlots.length === 0 
+                                  ? "Sin horarios disponibles para esta fecha" 
+                                  : "Seleccionar hora"
+                              } />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {timeSlots.map((slot) => (
+                                <SelectItem key={slot} value={slot}>
+                                  {slot}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="motivo" className="text-[#2C5282]">
@@ -302,7 +431,7 @@ export default function MedicosPage() {
                             value={motivoCita}
                             onChange={(e) => setMotivoCita(e.target.value)}
                             className="border-[#E2E8F0] focus:border-[#4A9B9B] focus:ring-[#4A9B9B]"
-                            disabled={loading || success}
+                            disabled={loading || success || horariosDisponibles.length === 0}
                           />
                         </div>
                       </div>
@@ -318,7 +447,7 @@ export default function MedicosPage() {
                         <Button
                           onClick={handleConfirmarCita}
                           className="flex-1 bg-[#4A9B9B] hover:bg-[#3A8B8B] text-white"
-                          disabled={loading || success}
+                          disabled={loading || success || horariosDisponibles.length === 0}
                         >
                           {loading ? "Creando..." : success ? "¡Cita Creada!" : "Confirmar Cita"}
                         </Button>

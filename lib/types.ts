@@ -100,20 +100,11 @@ export interface Cita {
   fk_id_paciente: number
   fk_id_estado: number
   fk_id_consultorio: number
+  cancelado_por?: "medico" | "paciente" | null
   medico?: Medico
   paciente?: Paciente
   estado?: Estado
   consultorio?: Consultorio
-}
-
-export interface Recordatorio {
-  id_recordatorio: number
-  medio: string
-  fecha_envio: Date
-  estado_envio: string
-  mensaje?: string
-  tbl_citas_id_citas: number
-  created_at?: Date
 }
 
 // Tipos para autenticación

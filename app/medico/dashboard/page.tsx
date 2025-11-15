@@ -1,28 +1,91 @@
 "use client"
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Calendar, Users, Clock, CheckCircle, AlertCircle } from "lucide-react"
-import { mockCitas } from "@/lib/mock-data"
-import { useAuth } from "@/contexts/auth-context"
 import { Badge } from "@/components/ui/badge"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useAuth } from "@/contexts/auth-context"
+import type { Cita } from "@/lib/types"
+import { AlertCircle, Calendar, CheckCircle, Clock, Users } from 'lucide-react'
+import { useEffect, useState } from "react"
 
 export default function MedicoDashboardPage() {
   const { user } = useAuth()
+  const [citas, setCitas] = useState<Cita[]>([])
+  const [loading, setLoading] = useState(true)
 
-  // Filtrar citas del médico actual
-  const misCitas = mockCitas.filter((c) => c.fk_id_medico === user?.medico?.id_medico)
-  const citasHoy = misCitas.filter((c) => {
+  useEffect(() => {
+    const fetchCitas = async () => {
+      if (!user?.medico?.id_medico) {
+        setLoading(false)
+        return
+      }
+
+      try {
+        setLoading(true)
+        const response = await fetch(`/api/citas?medico_id=${user.medico.id_medico}`)
+
+        if (!response.ok) {
+          throw new Error("Error al cargar las citas")
+        }
+
+        const data = await response.json()
+
+        const citasConFechas = data.citas.map((cita: any) => ({
+          ...cita,
+          fecha_cita: new Date(cita.fecha_cita),
+          fecha_creacion: new Date(cita.fecha_creacion),
+        }))
+
+        setCitas(citasConFechas)
+      } catch (err) {
+        console.error("Error al cargar citas:", err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchCitas()
+    
+    const interval = setInterval(fetchCitas, 30000)
+    
+    return () => clearInterval(interval)
+  }, [user?.medico?.id_medico])
+
+  const citasHoy = citas.filter((c) => {
     const hoy = new Date()
     return c.fecha_cita.toDateString() === hoy.toDateString()
   })
-  const citasPendientes = misCitas.filter((c) => c.estado?.nombre === "Pendiente")
-  const citasConfirmadas = misCitas.filter((c) => c.estado?.nombre === "Confirmada")
+  const citasPendientes = citas.filter((c) => c.estado?.nombre === "Pendiente")
+  const citasConfirmadas = citas.filter((c) => c.estado?.nombre === "Confirmada")
+  const citasCanceladas = citas.filter((c) => c.estado?.nombre === "Cancelada")
+  
+  const totalPacientes = new Set(
+    citas
+      .filter(c => c.estado?.nombre !== "Cancelada")
+      .map((c) => c.fk_id_paciente)
+  ).size
 
-  // Próximas citas
-  const proximasCitas = [...misCitas]
+  const proximasCitas = [...citas]
     .filter((c) => c.fecha_cita >= new Date())
     .sort((a, b) => a.fecha_cita.getTime() - b.fecha_cita.getTime())
     .slice(0, 5)
+
+  if (loading) {
+    return (
+      <div className="p-8 space-y-8">
+        <div>
+          <h1 className="text-3xl font-bold">
+            Bienvenido, Dr. {user?.persona.nombre} {user?.persona.apellido}
+          </h1>
+          <p className="text-muted-foreground">{user?.medico?.especialidad?.nombre}</p>
+        </div>
+        <Card>
+          <CardContent className="pt-6 text-center">
+            <p className="text-muted-foreground">Cargando datos...</p>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
   return (
     <div className="p-8 space-y-8">
@@ -75,8 +138,8 @@ export default function MedicoDashboardPage() {
             <Users className="w-4 h-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{new Set(misCitas.map((c) => c.fk_id_paciente)).size}</div>
-            <p className="text-xs text-muted-foreground mt-1">Pacientes atendidos</p>
+            <div className="text-2xl font-bold">{totalPacientes}</div>
+            <p className="text-xs text-muted-foreground mt-1">Pacientes agendados</p>
           </CardContent>
         </Card>
       </div>
@@ -85,7 +148,7 @@ export default function MedicoDashboardPage() {
       <Card>
         <CardHeader>
           <CardTitle>Próximas Citas</CardTitle>
-          <CardDescription>Tus citas programadas más cercanas</CardDescription>
+          <CardDescription>Tus citas programadas con estado actualizado</CardDescription>
         </CardHeader>
         <CardContent>
           {proximasCitas.length > 0 ? (
@@ -97,9 +160,16 @@ export default function MedicoDashboardPage() {
                       <Calendar className="w-5 h-5 text-primary" />
                     </div>
                     <div>
-                      <p className="font-medium">
-                        {cita.paciente?.persona?.nombre} {cita.paciente?.persona?.apellido}
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium">
+                          {cita.paciente?.persona?.nombre} {cita.paciente?.persona?.apellido}
+                        </p>
+                        {cita.estado?.nombre === "Cancelada" && cita.cancelado_por === "paciente" && (
+                          <Badge variant="outline" className="bg-red-50 text-red-700 border-red-300 text-xs">
+                            Cancelada por paciente
+                          </Badge>
+                        )}
+                      </div>
                       <p className="text-sm text-muted-foreground">{cita.motivo || "Consulta general"}</p>
                     </div>
                   </div>

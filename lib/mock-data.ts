@@ -1,5 +1,5 @@
 // Datos mock para desarrollo sin base de datos
-import type { Especialidad, Medico, Paciente, Cita, Estado, Consultorio, Persona, Disponibilidad } from "./types"
+import type { Cita, Consultorio, Disponibilidad, Especialidad, Estado, Medico, Paciente, Persona } from "./types"
 
 export const mockEspecialidades: Especialidad[] = [
   { id_especialidad: 1, nombre: "Medicina General", descripcion: "Atención médica general y preventiva" },

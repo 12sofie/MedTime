@@ -194,3 +194,22 @@ VALUES ('2024-09-15 11:00:00', 'Consulta general por gripe', 4, 2, 5, 1);
 INSERT INTO tbl_recordatorios (medio, fecha_envio, estado_envio, mensaje, tbl_citas_id_citas) VALUES 
 ('Email', '2024-10-03 08:00:00', 'Enviado', 'Recordatorio: Tiene una cita mañana a las 09:00 con Dr. Juan Pérez', 1),
 ('SMS', '2024-10-04 08:00:00', 'Enviado', 'Recordatorio: Tiene una cita hoy a las 14:00 con Dra. María López', 2);
+
+-----NUEVO----------------------
+ALTER TABLE tbl_citas 
+ADD COLUMN cancelado_por ENUM('medico', 'paciente') NULL 
+COMMENT 'Indica quién canceló la cita: medico o paciente';
+
+
+use medtime;
+
+-- Agregar columna fk_id_consultorio a tbl_medicos
+ALTER TABLE tbl_medicos 
+ADD COLUMN fk_id_consultorio INT NULL AFTER fk_id_especialidad,
+ADD FOREIGN KEY (fk_id_consultorio) REFERENCES tbl_consultorios(id_consultorio);
+
+-- Asignar consultorios a los médicos existentes
+UPDATE tbl_medicos SET fk_id_consultorio = 1 WHERE id_medico = 1; -- Dr. Juan Pérez -> Consultorio 1
+UPDATE tbl_medicos SET fk_id_consultorio = 2 WHERE id_medico = 2; -- Dra. María López -> Consultorio 2  
+UPDATE tbl_medicos SET fk_id_consultorio = 3 WHERE id_medico = 3; -- Dr. Carlos García -> Consultorio 3
+UPDATE tbl_medicos SET fk_id_consultorio = 4 WHERE id_medico = 4; -- Dra. Ana Martín -> Consultorio 4

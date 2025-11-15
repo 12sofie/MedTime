@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server"
 import pool from "@/lib/db"
 import type { Cita } from "@/lib/types"
+import { NextResponse } from "next/server"
 
 // GET - Obtener todas las citas
 export async function GET(request: Request) {
@@ -12,23 +12,29 @@ export async function GET(request: Request) {
 
     let query = `
       SELECT 
-        c.id_citas,
-        c.fecha_cita,
-        c.fecha_creacion,
-        c.motivo,
+        c.id_citas, 
+        c.fecha_cita, 
+        c.fecha_creacion, 
+        c.motivo, 
         c.observaciones,
-        c.fk_id_medico,
-        c.fk_id_paciente,
-        c.fk_id_estado,
+        c.cancelado_por,
+        c.fk_id_medico, 
+        c.fk_id_paciente, 
+        c.fk_id_estado, 
         c.fk_id_consultorio,
-        e.nombre as estado_nombre,
+        e.nombre as estado_nombre, 
         e.color as estado_color,
-        cons.nombre_sala,
+        cons.nombre_sala, 
         cons.ubicacion,
-        pm.nombre as medico_nombre,
+        m.descripcion as medico_descripcion,
+        pm.nombre as medico_nombre, 
         pm.apellido as medico_apellido,
-        pp.nombre as paciente_nombre,
+        pm.telefono as medico_telefono,
+        pm.correo as medico_correo,
+        pp.nombre as paciente_nombre, 
         pp.apellido as paciente_apellido,
+        pp.telefono as paciente_telefono,
+        pp.correo as paciente_correo,
         esp.nombre as especialidad_nombre
       FROM tbl_citas c
       LEFT JOIN tbl_estado e ON c.fk_id_estado = e.id_estado
@@ -65,13 +71,13 @@ export async function GET(request: Request) {
 
     const [rows] = await pool.query(query, params)
 
-    // Transform database rows to Cita objects
     const citas = (rows as any[]).map((row) => ({
       id_citas: row.id_citas,
       fecha_cita: row.fecha_cita,
       fecha_creacion: row.fecha_creacion,
       motivo: row.motivo,
       observaciones: row.observaciones,
+      cancelado_por: row.cancelado_por,
       fk_id_medico: row.fk_id_medico,
       fk_id_paciente: row.fk_id_paciente,
       fk_id_estado: row.fk_id_estado,
@@ -89,9 +95,12 @@ export async function GET(request: Request) {
       },
       medico: {
         id_medico: row.fk_id_medico,
+        descripcion: row.medico_descripcion,
         persona: {
           nombre: row.medico_nombre,
           apellido: row.medico_apellido,
+          telefono: row.medico_telefono,
+          correo: row.medico_correo,
         },
         especialidad: {
           nombre: row.especialidad_nombre,
@@ -102,6 +111,8 @@ export async function GET(request: Request) {
         persona: {
           nombre: row.paciente_nombre,
           apellido: row.paciente_apellido,
+          telefono: row.paciente_telefono,
+          correo: row.paciente_correo,
         },
       },
     }))
@@ -168,18 +179,7 @@ export async function POST(request: Request) {
     console.log("[v0] Fecha que se insertará en MySQL:", fechaMysql)
     console.log("[v0] Tipo final:", typeof fechaMysql)
 
-    const query = `
-      INSERT INTO tbl_citas (
-        fecha_cita,
-        fecha_creacion,
-        motivo,
-        observaciones,
-        fk_id_medico,
-        fk_id_paciente,
-        fk_id_estado,
-        fk_id_consultorio
-      ) VALUES (?, NOW(), ?, ?, ?, ?, 1, ?)
-    `
+    const query = `INSERT INTO tbl_citas (fecha_cita, fecha_creacion, motivo, observaciones, fk_id_medico, fk_id_paciente, fk_id_estado, fk_id_consultorio) VALUES (?, NOW(), ?, ?, ?, ?, 1, ?)`
 
     const params = [
       fechaMysql,
@@ -198,35 +198,7 @@ export async function POST(request: Request) {
 
     // Fetch the created appointment with all related data
     const [rows] = await pool.query(
-      `
-      SELECT 
-        c.id_citas,
-        c.fecha_cita,
-        c.fecha_creacion,
-        c.motivo,
-        c.observaciones,
-        c.fk_id_medico,
-        c.fk_id_paciente,
-        c.fk_id_estado,
-        c.fk_id_consultorio,
-        e.nombre as estado_nombre,
-        cons.nombre_sala,
-        cons.ubicacion,
-        pm.nombre as medico_nombre,
-        pm.apellido as medico_apellido,
-        pp.nombre as paciente_nombre,
-        pp.apellido as paciente_apellido,
-        esp.nombre as especialidad_nombre
-      FROM tbl_citas c
-      LEFT JOIN tbl_estado e ON c.fk_id_estado = e.id_estado
-      LEFT JOIN tbl_consultorios cons ON c.fk_id_consultorio = cons.id_consultorio
-      LEFT JOIN tbl_medicos m ON c.fk_id_medico = m.id_medico
-      LEFT JOIN tbl_persona pm ON m.fk_id_persona = pm.id_persona
-      LEFT JOIN tbl_especialidades esp ON m.fk_id_especialidad = esp.id_especialidad
-      LEFT JOIN tbl_pacientes pac ON c.fk_id_paciente = pac.id_paciente
-      LEFT JOIN tbl_persona pp ON pac.fk_id_persona = pp.id_persona
-      WHERE c.id_citas = ?
-    `,
+      `SELECT c.id_citas, c.fecha_cita, c.fecha_creacion, c.motivo, c.observaciones, c.cancelado_por, c.fk_id_medico, c.fk_id_paciente, c.fk_id_estado, c.fk_id_consultorio, e.nombre as estado_nombre, cons.nombre_sala, cons.ubicacion, pm.nombre as medico_nombre, pm.apellido as medico_apellido, pm.telefono as medico_telefono, pm.correo as medico_correo, pp.nombre as paciente_nombre, pp.apellido as paciente_apellido, pp.telefono as paciente_telefono, pp.correo as paciente_correo, esp.nombre as especialidad_nombre FROM tbl_citas c LEFT JOIN tbl_estado e ON c.fk_id_estado = e.id_estado LEFT JOIN tbl_consultorios cons ON c.fk_id_consultorio = cons.id_consultorio LEFT JOIN tbl_medicos m ON c.fk_id_medico = m.id_medico LEFT JOIN tbl_persona pm ON m.fk_id_persona = pm.id_persona LEFT JOIN tbl_especialidades esp ON m.fk_id_especialidad = esp.id_especialidad LEFT JOIN tbl_pacientes pac ON c.fk_id_paciente = pac.id_paciente LEFT JOIN tbl_persona pp ON pac.fk_id_persona = pp.id_persona WHERE c.id_citas = ?`,
       [insertId],
     )
 
@@ -242,6 +214,7 @@ export async function POST(request: Request) {
       fecha_creacion: row.fecha_creacion,
       motivo: row.motivo,
       observaciones: row.observaciones,
+      cancelado_por: row.cancelado_por,
       fk_id_medico: row.fk_id_medico,
       fk_id_paciente: row.fk_id_paciente,
       fk_id_estado: row.fk_id_estado,
@@ -258,9 +231,12 @@ export async function POST(request: Request) {
       },
       medico: {
         id_medico: row.fk_id_medico,
+        descripcion: row.medico_descripcion,
         persona: {
           nombre: row.medico_nombre,
           apellido: row.medico_apellido,
+          telefono: row.medico_telefono,
+          correo: row.medico_correo,
         },
         especialidad: {
           nombre: row.especialidad_nombre,
@@ -271,6 +247,8 @@ export async function POST(request: Request) {
         persona: {
           nombre: row.paciente_nombre,
           apellido: row.paciente_apellido,
+          telefono: row.paciente_telefono,
+          correo: row.paciente_correo,
         },
       },
     }
@@ -295,7 +273,9 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   try {
     const data = await request.json()
-    const { id_citas, fk_id_estado } = data
+    const { id_citas, fk_id_estado, cancelado_por } = data
+
+    console.log("[v0] Actualizando cita:", { id_citas, fk_id_estado, cancelado_por })
 
     if (!id_citas || !fk_id_estado) {
       return NextResponse.json({ error: "Faltan campos requeridos" }, { status: 400 })
@@ -303,15 +283,45 @@ export async function PATCH(request: Request) {
 
     const query = `
       UPDATE tbl_citas 
-      SET fk_id_estado = ?
+      SET fk_id_estado = ?, cancelado_por = ?
       WHERE id_citas = ?
     `
 
-    await pool.query(query, [fk_id_estado, id_citas])
+    await pool.query(query, [fk_id_estado, cancelado_por || null, id_citas])
+
+    console.log("[v0] Cita actualizada exitosamente")
 
     return NextResponse.json({ message: "Cita actualizada exitosamente" }, { status: 200 })
   } catch (error) {
     console.error("[v0] Error al actualizar cita:", error)
     return NextResponse.json({ error: "Error al actualizar cita" }, { status: 500 })
+  }
+}
+
+// DELETE - Eliminar cita
+export async function DELETE(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const id_citas = searchParams.get("id")
+
+    console.log("[v0] Eliminando cita:", id_citas)
+
+    if (!id_citas) {
+      return NextResponse.json({ error: "ID de cita requerido" }, { status: 400 })
+    }
+
+    const query = `
+      DELETE FROM tbl_citas 
+      WHERE id_citas = ?
+    `
+
+    await pool.query(query, [Number.parseInt(id_citas)])
+
+    console.log("[v0] Cita eliminada exitosamente")
+
+    return NextResponse.json({ message: "Cita eliminada exitosamente" }, { status: 200 })
+  } catch (error) {
+    console.error("[v0] Error al eliminar cita:", error)
+    return NextResponse.json({ error: "Error al eliminar cita" }, { status: 500 })
   }
 }

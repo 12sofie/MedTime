@@ -1,12 +1,11 @@
-
 "use client"
 
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Calendar, Clock, MapPin, FileText, Stethoscope } from "lucide-react"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAuth } from "@/contexts/auth-context"
 import type { Cita } from "@/lib/types"
+import { Calendar, Clock, FileText, MapPin, Phone, Stethoscope } from 'lucide-react'
+import { useEffect, useState } from "react"
 
 export default function HistorialPage() {
   const { user } = useAuth()
@@ -31,14 +30,13 @@ export default function HistorialPage() {
 
         const data = await response.json()
 
-        // Convert fecha_cita strings to Date objects and filter past appointments
         const citasPasadas = data.citas
           .map((cita: any) => ({
             ...cita,
             fecha_cita: new Date(cita.fecha_cita),
             fecha_creacion: new Date(cita.fecha_creacion),
           }))
-          .filter((cita: Cita) => cita.fecha_cita < new Date())
+          .filter((cita: Cita) => cita.fecha_cita < new Date() || cita.estado?.nombre === "Cancelada")
           .sort((a: Cita, b: Cita) => b.fecha_cita.getTime() - a.fecha_cita.getTime())
 
         setCitas(citasPasadas)
@@ -77,13 +75,11 @@ export default function HistorialPage() {
 
   return (
     <div className="p-8 space-y-6">
-      {/* Header */}
       <div>
         <h1 className="text-3xl font-bold">Historial Médico</h1>
         <p className="text-muted-foreground">Consulta tus citas médicas anteriores</p>
       </div>
 
-      {/* Historial de Citas */}
       {citas.length === 0 ? (
         <Card>
           <CardContent className="py-12">
@@ -110,20 +106,27 @@ export default function HistorialPage() {
                       <CardDescription>{cita.medico?.especialidad?.nombre}</CardDescription>
                     </div>
                   </div>
-                  <Badge
-                    variant="outline"
-                    style={{
-                      backgroundColor: `${cita.estado?.color}20`,
-                      color: cita.estado?.color,
-                      borderColor: cita.estado?.color,
-                    }}
-                  >
-                    {cita.estado?.nombre}
-                  </Badge>
+                  <div className="flex flex-col gap-2 items-end">
+                    <Badge
+                      variant="outline"
+                      style={{
+                        backgroundColor: `${cita.estado?.color}20`,
+                        color: cita.estado?.color,
+                        borderColor: cita.estado?.color,
+                      }}
+                    >
+                      {cita.estado?.nombre}
+                    </Badge>
+                    {cita.estado?.nombre === "Cancelada" && cita.cancelado_por && (
+                      <Badge variant="outline" className="bg-red-50 text-red-700 border-red-300 text-xs">
+                        Cancelada por {cita.cancelado_por === "medico" ? "el médico" : "el paciente"}
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-3 md:grid-cols-2">
                   <div className="flex items-center gap-2 text-sm">
                     <Calendar className="w-4 h-4 text-muted-foreground" />
                     <span>
@@ -142,15 +145,29 @@ export default function HistorialPage() {
                   <div className="flex items-center gap-2 text-sm">
                     <MapPin className="w-4 h-4 text-muted-foreground" />
                     <span>
-                      {cita.consultorio?.nombre_sala} - {cita.consultorio?.ubicacion}
+                      {cita.consultorio?.nombre_sala}
+                      {cita.consultorio?.ubicacion && ` - ${cita.consultorio.ubicacion}`}
                     </span>
                   </div>
+                  {cita.medico?.persona?.telefono && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Phone className="w-4 h-4 text-muted-foreground" />
+                      <span>{cita.medico.persona.telefono}</span>
+                    </div>
+                  )}
                 </div>
 
-                {cita.motivo_consulta && (
-                  <div className="pt-4 border-t">
+                {cita.medico?.descripcion && (
+                  <div className="pt-3 border-t">
+                    <p className="text-sm font-medium mb-1">Acerca del médico:</p>
+                    <p className="text-sm text-muted-foreground">{cita.medico.descripcion}</p>
+                  </div>
+                )}
+
+                {cita.motivo && (
+                  <div className="pt-3 border-t">
                     <p className="text-sm font-medium mb-1">Motivo de la consulta:</p>
-                    <p className="text-sm text-muted-foreground">{cita.motivo_consulta}</p>
+                    <p className="text-sm text-muted-foreground">{cita.motivo}</p>
                   </div>
                 )}
 
@@ -158,6 +175,14 @@ export default function HistorialPage() {
                   <div className="pt-2">
                     <p className="text-sm font-medium mb-1">Observaciones:</p>
                     <p className="text-sm text-muted-foreground">{cita.observaciones}</p>
+                  </div>
+                )}
+
+                {cita.estado?.nombre === "Completada" && (
+                  <div className="pt-3 mt-3 border-t bg-green-50 -mx-6 -mb-6 px-6 py-3 rounded-b-lg">
+                    <p className="text-sm text-green-800">
+                      ✓ Consulta completada exitosamente
+                    </p>
                   </div>
                 )}
               </CardContent>
